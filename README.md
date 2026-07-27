@@ -1,144 +1,74 @@
-<h1 align="center">NotchUsage ✦</h1>
+# CodexPotion 🧪
 
-<p align="center">
-  <strong>Your Claude and Codex limits, right where you already look.</strong>
-</p>
+A tiny native macOS menu-bar meter for your remaining Codex usage.
 
-<p align="center">
-  A tiny native macOS widget that lives around the MacBook notch.<br>
-  Quiet by default. Detailed on hover. Fresh on click.
-</p>
+CodexPotion shows the exact remaining percentage beside a colored potion bottle.
+The liquid level moves in 10% increments and changes color as your available usage
+drops:
 
-<p align="center">
-  <img alt="macOS 14+" src="https://img.shields.io/badge/macOS-14%2B-111111?style=flat&logo=apple&logoColor=white">
-  <img alt="Swift 6" src="https://img.shields.io/badge/Swift-6.0-F05138?style=flat&logo=swift&logoColor=white">
-  <img alt="Native SwiftUI" src="https://img.shields.io/badge/UI-SwiftUI-0D96F6?style=flat&logo=swift&logoColor=white">
-  <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/License-MIT-2F855A?style=flat"></a>
-</p>
+- **70–100%:** green
+- **40–60%:** cyan
+- **20–30%:** yellow
+- **10%:** orange
+- **0%:** red
 
-<p align="center">
-  <a href="#install">Install</a> ·
-  <a href="#how-it-works">How it works</a> ·
-  <a href="#privacy">Privacy</a>
-</p>
+## Requirements
 
----
-
-## 1. 🎬 See it in action
-
-<!-- The GitHub user-attachments URL inserted here renders as a native inline video player. -->
-https://github.com/user-attachments/assets/1ae90079-1e49-40f3-a6c1-3d088bb2b3b1
-
-<p align="center">
-  <em>Claude on the left. Codex on the right. The desktop stays yours.</em>
-</p>
-
-## 2. ✨ What it feels like
-
-NotchUsage turns an awkward piece of screen hardware into a calm status surface.
-You see only the numbers while working; move the pointer to the notch when you
-want progress bars, reset times, or a little more context.
-
-| Moment | What appears |
-| --- | --- |
-| 💤 **Idle** | Compact Claude 5-hour, Claude weekly, and Codex percentages |
-| 👀 **Hover** | Progress bars plus exact reset times |
-| ↻ **Click** | A fresh request for both providers |
-| ⚠️ **Rate limited** | A live retry countdown without request spam |
-| 🔑 **Token expired** | A clear sign-in instruction while the last good value stays visible |
-
-> [!NOTE]
-> Manual refresh respects an active server cooldown. Clicking repeatedly will
-> never bypass `Retry-After` or make a rate limit worse.
-
-## 3. 🪶 Why it stays out of the way
-
-- **85 pt per provider** — designed around the physical notch, not over it
-- **Numbers first** — bars appear only when you ask for detail
-- **Native macOS** — SwiftUI + AppKit, with no Electron or background server
-- **Every Space** — visible across desktops and full-screen apps
-- **Launch at login** — enabled once, controllable from the menu bar
-- **Last-good-value cache** — temporary network trouble does not erase useful data
-
-<a id="install"></a>
-
-## 4. 🚀 Install
-
-### Requirements
-
-- A MacBook with a notch
 - macOS 14 or later
 - Xcode Command Line Tools
-- Claude Code signed in locally
-- Codex CLI signed in locally
+- ChatGPT desktop app or Codex CLI installed and signed in
 
-### One-minute setup
+## Install
 
 ```bash
-git clone https://github.com/Lyric-o/NotchUsage.git
-cd NotchUsage
+git clone https://github.com/thenorb/CodexPotion.git
+cd CodexPotion
 ./install.sh
 ```
 
 The installer builds a release version, copies it to
-`~/Applications/NotchUsage.app`, signs it locally, and opens it.
+`~/Applications/CodexPotion.app`, ad-hoc signs it locally, and opens it.
 
-Pulling an update is just as small:
+To update:
 
 ```bash
 git pull
 ./install.sh
 ```
 
-## 5. 🧭 Use
+## Use
 
-- **Hover** over the notch strip to reveal progress bars and reset times.
-- **Click** the visible strip to request fresh Claude and Codex usage.
-- Use the **menu bar icon** to refresh, open the configuration, toggle
-  **Launch at Login**, or quit.
+- The menu-bar percentage and potion refresh automatically every 30 seconds.
+- Select **Refresh Usage** for an immediate update.
+- Select **Launch at Login** if you want to enable it. It is off by default.
+- The menu shows the exact reset time when available.
 
-The compact strip does not open a large click-blocking area. The detail panel
-exists only while the pointer is at the notch.
+## Privacy and security
 
-<a id="how-it-works"></a>
+CodexPotion intentionally has a narrow data surface:
 
-## 6. ⚙️ How it works
+- It does **not** read `~/.codex/auth.json`.
+- It does **not** read Codex prompts, conversations, session logs, or workspace files.
+- It does **not** access Claude credentials or Anthropic services.
+- It contains no analytics, telemetry, advertising, or third-party backend.
+- It does not make direct authenticated web requests.
 
-| Provider | Live source | Local fallback |
-| --- | --- | --- |
-| **Claude** | `api.anthropic.com/api/oauth/usage` | Last successful response |
-| **Codex** | `chatgpt.com/backend-api/wham/usage` | Latest local `rate_limits` event |
+The app launches the locally installed official `codex app-server` process and
+requests `account/rateLimits/read` over a local JSON-RPC stdio connection. Codex
+itself handles its existing authentication and OpenAI service communication. The
+app receives only the rate-limit snapshot needed to render the meter.
 
-NotchUsage checks local state every 5 seconds and requests authoritative service
-usage about once per minute. A manual click requests fresh data immediately
-unless that provider is inside a server-directed cooldown.
+The last successful percentage and reset time are cached locally in the app's
+standard macOS preferences so the menu-bar display does not disappear during a
+temporary refresh failure.
 
-Each provider owns its own retry state:
+## Build from source
 
-- `429` → honor `Retry-After`, otherwise use bounded exponential backoff
-- `401` / `403` → show the provider-specific sign-in instruction
-- success → clear the warning and resume normal polling
-
-Credentials are read fresh for each request. When Claude Code or Codex refreshes
-its own login, NotchUsage reconnects on the next eligible poll.
-
-<a id="privacy"></a>
-
-## 7. 🔒 Privacy
-
-Your credentials stay on your Mac.
-
-- Claude credentials are read from the macOS Keychain entry created by Claude Code.
-- Codex credentials are read from `~/.codex/auth.json`.
-- Tokens are kept in memory only and are never written by NotchUsage.
-- Requests go directly to the official Anthropic and OpenAI endpoints.
-- No analytics, telemetry, advertising, third-party backend, or account proxy.
-
-## 8. 🛠 Build from source
+There are no third-party package dependencies.
 
 ```bash
 ./build-app.sh
-open dist/NotchUsage.app
+open dist/CodexPotion.app
 ```
 
 Or compile the Swift package directly:
@@ -147,20 +77,24 @@ Or compile the Swift package directly:
 swift build -c release
 ```
 
-## 9. 🧹 Uninstall
+## Uninstall
 
-Quit NotchUsage, disable **Launch at Login** from the menu if enabled, then run:
+Quit CodexPotion and disable **Launch at Login** first if you enabled it, then:
 
 ```bash
-rm -r ~/Applications/NotchUsage.app
+rm -r ~/Applications/CodexPotion.app
 ```
 
-Your Claude Code and Codex credentials are untouched.
+## Attribution
 
-## 10. 📄 License
+CodexPotion is derived from
+[Lyric-o/NotchUsage](https://github.com/Lyric-o/NotchUsage), originally released
+under the MIT License. The original copyright and license notice are preserved.
 
-Released under the [MIT License](LICENSE).
+This derivative removes the notch overlay, Claude integration, direct credential
+access, private usage endpoints, and local Codex session-log scanning. It replaces
+them with a Codex-only menu-bar interface using the official local app-server.
 
-<p align="center">
-  <strong>Your limits. In sight, not in the way.</strong>
-</p>
+## License
+
+[MIT](LICENSE)

@@ -2,15 +2,15 @@
 import PackageDescription
 
 let package = Package(
-    name: "NotchUsage",
+    name: "CodexPotion",
     platforms: [.macOS(.v14)],
     products: [
-        .executable(name: "NotchUsage", targets: ["NotchUsage"])
+        .executable(name: "CodexPotion", targets: ["CodexPotion"])
     ],
     targets: [
         .executableTarget(
-            name: "NotchUsage",
-            path: "Sources/NotchUsage"
+            name: "CodexPotion",
+            path: "Sources/CodexPotion"
         )
     ]
 )

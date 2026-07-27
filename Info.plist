@@ -3,13 +3,13 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleDisplayName</key>
-    <string>Notch Usage</string>
+    <string>Codex Potion</string>
     <key>CFBundleExecutable</key>
-    <string>NotchUsage</string>
+    <string>CodexPotion</string>
     <key>CFBundleIdentifier</key>
-    <string>local.notchusage.app</string>
+    <string>io.github.thenorb.codexpotion</string>
     <key>CFBundleName</key>
-    <string>NotchUsage</string>
+    <string>CodexPotion</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
