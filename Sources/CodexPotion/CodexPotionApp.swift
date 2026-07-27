@@ -18,6 +18,8 @@ struct CodexPotionApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
     private var usageMenuItem: NSMenuItem?
+    private var primaryWindowMenuItem: NSMenuItem?
+    private var secondaryWindowMenuItem: NSMenuItem?
     private var refreshIntervalMenuItem: NSMenuItem?
     private var decreaseIntervalItem: NSMenuItem?
     private var increaseIntervalItem: NSMenuItem?
@@ -43,6 +45,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         usageItem.isEnabled = false
         menu.addItem(usageItem)
         usageMenuItem = usageItem
+
+        let primaryWindowItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        primaryWindowItem.isEnabled = false
+        primaryWindowItem.isHidden = true
+        menu.addItem(primaryWindowItem)
+        primaryWindowMenuItem = primaryWindowItem
+
+        let secondaryWindowItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        secondaryWindowItem.isEnabled = false
+        secondaryWindowItem.isHidden = true
+        menu.addItem(secondaryWindowItem)
+        secondaryWindowMenuItem = secondaryWindowItem
+
         menu.addItem(.separator())
         menu.addItem(withTitle: "Refresh Usage", action: #selector(refresh), keyEquivalent: "r")
         let intervalItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
@@ -95,9 +110,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func updateStatusItem(with usage: ProviderUsage) {
         guard let button = statusItem?.button else { return }
-        let percentage = usage.remainingPercent < 0
+        let overallRemaining = usage.limitingRemainingPercent
+        let percentage = overallRemaining < 0
             ? "--"
-            : "\(Int(usage.remainingPercent.rounded()))%"
+            : "\(Int(overallRemaining.rounded()))%"
         let title = NSAttributedString(
             string: percentage,
             attributes: [
@@ -106,14 +122,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ]
         )
         button.attributedTitle = title
-        button.image = potionImage(for: usage.remainingPercent)
+        button.image = potionImage(for: overallRemaining)
         button.toolTip = "Codex usage remaining: \(percentage)"
 
-        var menuTitle = "Codex usage remaining: \(percentage)"
-        if let reset = usage.resetsAt {
-            menuTitle += " · resets \(Self.resetFormatter.string(from: reset))"
+        usageMenuItem?.title = "Codex usage remaining: \(percentage)"
+        updateWindowMenuItem(
+            primaryWindowMenuItem,
+            remaining: usage.remainingPercent,
+            label: usage.label,
+            reset: usage.resetsAt
+        )
+        updateWindowMenuItem(
+            secondaryWindowMenuItem,
+            remaining: usage.secondaryRemainingPercent,
+            label: usage.secondaryLabel,
+            reset: usage.secondaryResetsAt
+        )
+    }
+
+    private func updateWindowMenuItem(
+        _ item: NSMenuItem?,
+        remaining: Double?,
+        label: String?,
+        reset: Date?
+    ) {
+        guard let item, let remaining, remaining >= 0 else {
+            item?.isHidden = true
+            return
         }
-        usageMenuItem?.title = menuTitle
+        var title = "\(label ?? "Usage window"): \(Int(remaining.rounded()))% remaining"
+        if let reset {
+            title += " · resets \(Self.resetFormatter.string(from: reset))"
+        }
+        item.title = title
+        item.isHidden = false
     }
 
     private func potionImage(for percentage: Double) -> NSImage {

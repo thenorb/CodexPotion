@@ -8,6 +8,11 @@ struct ProviderUsage: Codable, Equatable, Sendable {
     var secondaryLabel: String? = nil
     var secondaryResetsAt: Date? = nil
 
+    var limitingRemainingPercent: Double {
+        guard let secondaryRemainingPercent else { return remainingPercent }
+        return min(remainingPercent, secondaryRemainingPercent)
+    }
+
     static let placeholder = ProviderUsage(
         remainingPercent: -1,
         label: "Waiting for Codex usage",
@@ -183,20 +188,26 @@ final class UsageStore: ObservableObject {
             let reset = number(window["resetsAt"]).map(Date.init(timeIntervalSince1970:))
             let label: String
             if let minutes, minutes >= 10_080 {
-                label = "Weekly · Codex app-server"
+                label = "Weekly window"
             } else if let minutes, minutes >= 60 {
-                label = "\(minutes / 60)-hour window · Codex app-server"
+                label = "\(minutes / 60)-hour window"
+            } else if let minutes {
+                label = "\(minutes)-minute window"
             } else {
-                label = "Current window · Codex app-server"
+                label = "Current window"
             }
             windows.append((min(100, max(0, 100 - used)), reset, label))
         }
 
-        guard let limiting = windows.min(by: { $0.remaining < $1.remaining }) else { return nil }
+        guard let primary = windows.first else { return nil }
+        let secondary = windows.dropFirst().first
         return ProviderUsage(
-            remainingPercent: limiting.remaining,
-            label: limiting.label,
-            resetsAt: limiting.reset
+            remainingPercent: primary.remaining,
+            label: primary.label,
+            resetsAt: primary.reset,
+            secondaryRemainingPercent: secondary?.remaining,
+            secondaryLabel: secondary?.label,
+            secondaryResetsAt: secondary?.reset
         )
     }
 

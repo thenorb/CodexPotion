@@ -45,7 +45,8 @@ git pull
   launches.
 - Select **Refresh Usage** for an immediate update.
 - Select **Launch at Login** if you want to enable it. It is off by default.
-- The menu shows the exact reset time when available.
+- The menu shows each exposed usage window with its remaining percentage and
+  exact reset time, including the short and weekly windows when available.
 
 ## Privacy and security
 
