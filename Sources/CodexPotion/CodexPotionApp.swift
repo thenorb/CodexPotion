@@ -17,9 +17,10 @@ struct CodexPotionApp: App {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
-    private var usageMenuItem: NSMenuItem?
     private var primaryWindowMenuItem: NSMenuItem?
     private var secondaryWindowMenuItem: NSMenuItem?
+    private var bankedResetsMenuItem: NSMenuItem?
+    private var resetCreditMenuItems: [NSMenuItem] = []
     private var refreshIntervalMenuItem: NSMenuItem?
     private var decreaseIntervalItem: NSMenuItem?
     private var increaseIntervalItem: NSMenuItem?
@@ -41,11 +42,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         updateStatusItem(with: store.codex)
 
         let menu = NSMenu()
-        let usageItem = NSMenuItem(title: "Codex usage: --", action: nil, keyEquivalent: "")
-        usageItem.isEnabled = false
-        menu.addItem(usageItem)
-        usageMenuItem = usageItem
-
         let primaryWindowItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
         primaryWindowItem.isEnabled = false
         primaryWindowItem.isHidden = true
@@ -57,6 +53,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         secondaryWindowItem.isHidden = true
         menu.addItem(secondaryWindowItem)
         secondaryWindowMenuItem = secondaryWindowItem
+
+        let bankedResetsItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        bankedResetsItem.isEnabled = false
+        bankedResetsItem.isHidden = true
+        menu.addItem(bankedResetsItem)
+        bankedResetsMenuItem = bankedResetsItem
 
         menu.addItem(.separator())
         menu.addItem(withTitle: "Refresh Usage", action: #selector(refresh), keyEquivalent: "r")
@@ -125,7 +127,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         button.image = potionImage(for: overallRemaining)
         button.toolTip = "Codex usage remaining: \(percentage)"
 
-        usageMenuItem?.title = "Codex usage remaining: \(percentage)"
         updateWindowMenuItem(
             primaryWindowMenuItem,
             remaining: usage.remainingPercent,
@@ -138,6 +139,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             label: usage.secondaryLabel,
             reset: usage.secondaryResetsAt
         )
+        updateResetCreditMenu(with: usage)
     }
 
     private func updateWindowMenuItem(
@@ -156,6 +158,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         item.title = title
         item.isHidden = false
+    }
+
+    private func updateResetCreditMenu(with usage: ProviderUsage) {
+        guard let menu = statusItem?.menu, let summaryItem = bankedResetsMenuItem else { return }
+        resetCreditMenuItems.forEach(menu.removeItem)
+        resetCreditMenuItems.removeAll()
+
+        guard let availableCount = usage.availableResetCount else {
+            summaryItem.isHidden = true
+            return
+        }
+
+        summaryItem.title = "Banked full resets: \(availableCount) available"
+        summaryItem.isHidden = false
+
+        var insertionIndex = menu.index(of: summaryItem) + 1
+        for credit in usage.resetCredits ?? [] {
+            var title = "  \(credit.title)"
+            if let expiresAt = credit.expiresAt {
+                title += " · expires \(Self.resetFormatter.string(from: expiresAt))"
+            }
+            let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+            item.isEnabled = false
+            menu.insertItem(item, at: insertionIndex)
+            resetCreditMenuItems.append(item)
+            insertionIndex += 1
+        }
     }
 
     private func potionImage(for percentage: Double) -> NSImage {

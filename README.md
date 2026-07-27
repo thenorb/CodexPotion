@@ -47,6 +47,8 @@ git pull
 - Select **Launch at Login** if you want to enable it. It is off by default.
 - The menu shows each exposed usage window with its remaining percentage and
   exact reset time, including the short and weekly windows when available.
+- Available banked full resets are shown with the expiration time for each
+  credit.
 
 ## Privacy and security
 

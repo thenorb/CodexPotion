@@ -1,5 +1,10 @@
 import Foundation
 
+struct ResetCredit: Codable, Equatable, Sendable {
+    var title: String
+    var expiresAt: Date?
+}
+
 struct ProviderUsage: Codable, Equatable, Sendable {
     var remainingPercent: Double
     var label: String?
@@ -7,6 +12,8 @@ struct ProviderUsage: Codable, Equatable, Sendable {
     var secondaryRemainingPercent: Double? = nil
     var secondaryLabel: String? = nil
     var secondaryResetsAt: Date? = nil
+    var availableResetCount: Int? = nil
+    var resetCredits: [ResetCredit]? = nil
 
     var limitingRemainingPercent: Double {
         guard let secondaryRemainingPercent else { return remainingPercent }
@@ -180,6 +187,18 @@ final class UsageStore: ObservableObject {
             ?? (result["rateLimits"] as? [String: Any])
         guard let snapshot else { return nil }
 
+        let resetCreditSnapshot = result["rateLimitResetCredits"] as? [String: Any]
+        let availableResetCount = number(resetCreditSnapshot?["availableCount"]).map(Int.init)
+        let resetCredits = (resetCreditSnapshot?["credits"] as? [[String: Any]])?
+            .filter { ($0["status"] as? String) == "available" }
+            .map { credit in
+                ResetCredit(
+                    title: (credit["title"] as? String) ?? "Full reset",
+                    expiresAt: number(credit["expiresAt"])
+                        .map(Date.init(timeIntervalSince1970:))
+                )
+            }
+
         var windows: [(remaining: Double, reset: Date?, label: String)] = []
         for key in ["primary", "secondary"] {
             guard let window = snapshot[key] as? [String: Any],
@@ -207,7 +226,9 @@ final class UsageStore: ObservableObject {
             resetsAt: primary.reset,
             secondaryRemainingPercent: secondary?.remaining,
             secondaryLabel: secondary?.label,
-            secondaryResetsAt: secondary?.reset
+            secondaryResetsAt: secondary?.reset,
+            availableResetCount: availableResetCount,
+            resetCredits: resetCredits
         )
     }
 
