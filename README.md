@@ -38,7 +38,11 @@ git pull
 
 ## Use
 
-- The menu-bar percentage and potion refresh automatically every 30 seconds.
+- The menu-bar percentage and potion refresh automatically every 5 minutes by
+  default.
+- Use the menu's **− / + interval controls** to choose 30 seconds; 1, 2, 3, 4,
+  5, 10, 15, 20, 30, 45, or 60 minutes. Your selection is retained between
+  launches.
 - Select **Refresh Usage** for an immediate update.
 - Select **Launch at Login** if you want to enable it. It is off by default.
 - The menu shows the exact reset time when available.

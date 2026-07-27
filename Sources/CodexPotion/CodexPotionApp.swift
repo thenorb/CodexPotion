@@ -18,6 +18,9 @@ struct CodexPotionApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
     private var usageMenuItem: NSMenuItem?
+    private var refreshIntervalMenuItem: NSMenuItem?
+    private var decreaseIntervalItem: NSMenuItem?
+    private var increaseIntervalItem: NSMenuItem?
     private var launchAtLoginItem: NSMenuItem?
     private var usageObserver: AnyCancellable?
     private let store = UsageStore()
@@ -42,6 +45,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         usageMenuItem = usageItem
         menu.addItem(.separator())
         menu.addItem(withTitle: "Refresh Usage", action: #selector(refresh), keyEquivalent: "r")
+        let intervalItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        intervalItem.isEnabled = false
+        menu.addItem(intervalItem)
+        refreshIntervalMenuItem = intervalItem
+
+        let decreaseItem = NSMenuItem(
+            title: "−  Decrease Interval",
+            action: #selector(decreaseRefreshInterval),
+            keyEquivalent: ""
+        )
+        menu.addItem(decreaseItem)
+        decreaseIntervalItem = decreaseItem
+
+        let increaseItem = NSMenuItem(
+            title: "+  Increase Interval",
+            action: #selector(increaseRefreshInterval),
+            keyEquivalent: ""
+        )
+        menu.addItem(increaseItem)
+        increaseIntervalItem = increaseItem
+        updateRefreshIntervalMenu()
+
+        menu.addItem(.separator())
         let loginItem = NSMenuItem(
             title: "Launch at Login",
             action: #selector(toggleLaunchAtLogin),
@@ -155,6 +181,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task { await store.refresh(force: true) }
     }
 
+    @objc private func decreaseRefreshInterval() {
+        store.adjustRefreshInterval(by: -1)
+        updateRefreshIntervalMenu()
+    }
+
+    @objc private func increaseRefreshInterval() {
+        store.adjustRefreshInterval(by: 1)
+        updateRefreshIntervalMenu()
+    }
+
+    private func updateRefreshIntervalMenu() {
+        let interval = store.refreshInterval
+        refreshIntervalMenuItem?.title = "Refresh Every: \(Self.format(interval: interval))"
+        let intervals = UsageStore.allowedRefreshIntervals
+        decreaseIntervalItem?.isEnabled = interval != intervals.first
+        increaseIntervalItem?.isEnabled = interval != intervals.last
+    }
+
     @objc private func quit() {
         NSApp.terminate(nil)
     }
@@ -185,4 +229,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         formatter.timeStyle = .short
         return formatter
     }()
+
+    private static func format(interval: TimeInterval) -> String {
+        let seconds = Int(interval)
+        return seconds < 60 ? "\(seconds) sec" : "\(seconds / 60) min"
+    }
 }

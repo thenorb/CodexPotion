@@ -17,17 +17,55 @@ struct ProviderUsage: Codable, Equatable, Sendable {
 
 @MainActor
 final class UsageStore: ObservableObject {
+    static let allowedRefreshIntervals: [TimeInterval] = [
+        30, 60, 120, 180, 240, 300, 600, 900, 1_200, 1_800, 2_700, 3_600
+    ]
+
     @Published private(set) var codex = ProviderUsage.placeholder
     @Published private(set) var lastUpdated: Date?
     @Published private(set) var errorMessage: String?
+    @Published private(set) var refreshInterval: TimeInterval
 
     private var timer: Timer?
     private var isRefreshing = false
+    private static let refreshIntervalKey = "refreshIntervalSeconds"
+
+    init() {
+        let savedInterval = UserDefaults.standard.double(forKey: Self.refreshIntervalKey)
+        refreshInterval = Self.allowedRefreshIntervals.contains(savedInterval)
+            ? savedInterval
+            : 300
+    }
 
     func start() {
         loadCachedUsage()
         Task { await refresh() }
-        timer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
+        scheduleTimer()
+    }
+
+    func adjustRefreshInterval(by offset: Int) {
+        guard let currentIndex = Self.allowedRefreshIntervals.firstIndex(of: refreshInterval) else {
+            setRefreshInterval(300)
+            return
+        }
+        let newIndex = min(
+            Self.allowedRefreshIntervals.count - 1,
+            max(0, currentIndex + offset)
+        )
+        guard newIndex != currentIndex else { return }
+        setRefreshInterval(Self.allowedRefreshIntervals[newIndex])
+    }
+
+    private func setRefreshInterval(_ interval: TimeInterval) {
+        guard Self.allowedRefreshIntervals.contains(interval) else { return }
+        refreshInterval = interval
+        UserDefaults.standard.set(interval, forKey: Self.refreshIntervalKey)
+        scheduleTimer()
+    }
+
+    private func scheduleTimer() {
+        timer?.invalidate()
+        timer = Timer.scheduledTimer(withTimeInterval: refreshInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in await self?.refresh() }
         }
     }
