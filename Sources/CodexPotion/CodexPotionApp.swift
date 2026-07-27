@@ -15,15 +15,82 @@ struct CodexPotionApp: App {
 }
 
 @MainActor
+final class RefreshIntervalControlView: NSView {
+    var onAdjust: ((Int) -> Void)?
+
+    private let intervalLabel = NSTextField(labelWithString: "")
+    private lazy var decreaseButton = makeButton(
+        title: "−",
+        toolTip: "Decrease refresh interval",
+        action: #selector(decrease)
+    )
+    private lazy var increaseButton = makeButton(
+        title: "+",
+        toolTip: "Increase refresh interval",
+        action: #selector(increase)
+    )
+
+    init() {
+        super.init(frame: NSRect(x: 0, y: 0, width: 280, height: 34))
+        intervalLabel.font = NSFont.menuFont(ofSize: 0)
+        intervalLabel.textColor = .labelColor
+        intervalLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        addSubview(intervalLabel)
+        addSubview(decreaseButton)
+        addSubview(increaseButton)
+        NSLayoutConstraint.activate([
+            intervalLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14),
+            intervalLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
+            intervalLabel.trailingAnchor.constraint(lessThanOrEqualTo: decreaseButton.leadingAnchor, constant: -8),
+            decreaseButton.centerYAnchor.constraint(equalTo: centerYAnchor),
+            decreaseButton.widthAnchor.constraint(equalToConstant: 28),
+            decreaseButton.heightAnchor.constraint(equalToConstant: 24),
+            increaseButton.leadingAnchor.constraint(equalTo: decreaseButton.trailingAnchor, constant: 6),
+            increaseButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
+            increaseButton.centerYAnchor.constraint(equalTo: centerYAnchor),
+            increaseButton.widthAnchor.constraint(equalToConstant: 28),
+            increaseButton.heightAnchor.constraint(equalToConstant: 24)
+        ])
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func update(intervalText: String, canDecrease: Bool, canIncrease: Bool) {
+        intervalLabel.stringValue = "Refresh Every: \(intervalText)"
+        decreaseButton.isEnabled = canDecrease
+        increaseButton.isEnabled = canIncrease
+    }
+
+    private func makeButton(title: String, toolTip: String, action: Selector) -> NSButton {
+        let button = NSButton(title: title, target: self, action: action)
+        button.bezelStyle = .rounded
+        button.controlSize = .small
+        button.font = NSFont.systemFont(ofSize: 15, weight: .medium)
+        button.toolTip = toolTip
+        button.translatesAutoresizingMaskIntoConstraints = false
+        return button
+    }
+
+    @objc private func decrease() {
+        onAdjust?(-1)
+    }
+
+    @objc private func increase() {
+        onAdjust?(1)
+    }
+}
+
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
     private var primaryWindowMenuItem: NSMenuItem?
     private var secondaryWindowMenuItem: NSMenuItem?
     private var bankedResetsMenuItem: NSMenuItem?
     private var resetCreditMenuItems: [NSMenuItem] = []
-    private var refreshIntervalMenuItem: NSMenuItem?
-    private var decreaseIntervalItem: NSMenuItem?
-    private var increaseIntervalItem: NSMenuItem?
+    private var refreshIntervalControl: RefreshIntervalControlView?
     private var launchAtLoginItem: NSMenuItem?
     private var usageObserver: AnyCancellable?
     private let store = UsageStore()
@@ -62,26 +129,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         menu.addItem(.separator())
         menu.addItem(withTitle: "Refresh Usage", action: #selector(refresh), keyEquivalent: "r")
-        let intervalItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
-        intervalItem.isEnabled = false
+        let intervalControl = RefreshIntervalControlView()
+        intervalControl.onAdjust = { [weak self] offset in
+            self?.store.adjustRefreshInterval(by: offset)
+            self?.updateRefreshIntervalMenu()
+        }
+        let intervalItem = NSMenuItem()
+        intervalItem.view = intervalControl
         menu.addItem(intervalItem)
-        refreshIntervalMenuItem = intervalItem
-
-        let decreaseItem = NSMenuItem(
-            title: "−  Decrease Interval",
-            action: #selector(decreaseRefreshInterval),
-            keyEquivalent: ""
-        )
-        menu.addItem(decreaseItem)
-        decreaseIntervalItem = decreaseItem
-
-        let increaseItem = NSMenuItem(
-            title: "+  Increase Interval",
-            action: #selector(increaseRefreshInterval),
-            keyEquivalent: ""
-        )
-        menu.addItem(increaseItem)
-        increaseIntervalItem = increaseItem
+        refreshIntervalControl = intervalControl
         updateRefreshIntervalMenu()
 
         menu.addItem(.separator())
@@ -252,22 +308,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task { await store.refresh(force: true) }
     }
 
-    @objc private func decreaseRefreshInterval() {
-        store.adjustRefreshInterval(by: -1)
-        updateRefreshIntervalMenu()
-    }
-
-    @objc private func increaseRefreshInterval() {
-        store.adjustRefreshInterval(by: 1)
-        updateRefreshIntervalMenu()
-    }
-
     private func updateRefreshIntervalMenu() {
         let interval = store.refreshInterval
-        refreshIntervalMenuItem?.title = "Refresh Every: \(Self.format(interval: interval))"
         let intervals = UsageStore.allowedRefreshIntervals
-        decreaseIntervalItem?.isEnabled = interval != intervals.first
-        increaseIntervalItem?.isEnabled = interval != intervals.last
+        refreshIntervalControl?.update(
+            intervalText: Self.format(interval: interval),
+            canDecrease: interval != intervals.first,
+            canIncrease: interval != intervals.last
+        )
     }
 
     @objc private func quit() {

@@ -42,7 +42,7 @@ git pull
   default.
 - Use the menu's **− / + interval controls** to choose 30 seconds; 1, 2, 3, 4,
   5, 10, 15, 20, 30, 45, or 60 minutes. Your selection is retained between
-  launches.
+  launches, and adjusting it keeps the menu open.
 - Select **Refresh Usage** for an immediate update.
 - Select **Launch at Login** if you want to enable it. It is off by default.
 - The menu shows each exposed usage window with its remaining percentage and
