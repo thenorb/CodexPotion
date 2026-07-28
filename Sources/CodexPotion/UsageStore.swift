@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 
 struct ResetCredit: Codable, Equatable, Sendable {
     var title: String
@@ -39,6 +40,7 @@ final class UsageStore: ObservableObject {
     @Published private(set) var refreshInterval: TimeInterval
 
     private var timer: Timer?
+    private var wakeObserver: NSObjectProtocol?
     private var isRefreshing = false
     private static let refreshIntervalKey = "refreshIntervalSeconds"
 
@@ -52,6 +54,17 @@ final class UsageStore: ObservableObject {
     func start() {
         loadCachedUsage()
         Task { await refresh() }
+        if wakeObserver == nil {
+            wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
+                forName: NSWorkspace.didWakeNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor in
+                    await self?.refresh(force: true)
+                }
+            }
+        }
         scheduleTimer()
     }
 
@@ -77,9 +90,11 @@ final class UsageStore: ObservableObject {
 
     private func scheduleTimer() {
         timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: refreshInterval, repeats: true) { [weak self] _ in
+        let newTimer = Timer(timeInterval: refreshInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in await self?.refresh() }
         }
+        timer = newTimer
+        RunLoop.main.add(newTimer, forMode: .common)
     }
 
     func refresh(force: Bool = false) async {
