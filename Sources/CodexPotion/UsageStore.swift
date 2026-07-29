@@ -30,6 +30,11 @@ struct ProviderUsage: Codable, Equatable, Sendable {
 
 @MainActor
 final class UsageStore: ObservableObject {
+    private enum FetchOutcome: Sendable {
+        case usage(ProviderUsage?)
+        case timedOut
+    }
+
     static let allowedRefreshIntervals: [TimeInterval] = [
         30, 60, 120, 180, 240, 300, 600, 900, 1_200, 1_800, 2_700, 3_600
     ]
@@ -138,12 +143,11 @@ final class UsageStore: ObservableObject {
             let process = Process()
             let input = Pipe()
             let output = Pipe()
-            let errors = Pipe()
             process.executableURL = executable
             process.arguments = ["app-server"]
             process.standardInput = input
             process.standardOutput = output
-            process.standardError = errors
+            process.standardError = FileHandle.nullDevice
 
             do {
                 try process.run()
@@ -154,14 +158,39 @@ final class UsageStore: ObservableObject {
                 ].joined(separator: "\n") + "\n"
                 try input.fileHandleForWriting.write(contentsOf: Data(requests.utf8))
 
-                var fetchedUsage: ProviderUsage?
-                for try await line in output.fileHandleForReading.bytes.lines {
-                    guard let data = line.data(using: .utf8),
-                          let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                          root["id"] as? Int == 1,
-                          let result = root["result"] as? [String: Any] else { continue }
-                    fetchedUsage = usage(from: result)
-                    break
+                let outcome = await withTaskGroup(
+                    of: FetchOutcome.self,
+                    returning: FetchOutcome.self
+                ) { group in
+                    group.addTask {
+                        do {
+                            for try await line in output.fileHandleForReading.bytes.lines {
+                                guard let data = line.data(using: .utf8),
+                                      let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                                      root["id"] as? Int == 1,
+                                      let result = root["result"] as? [String: Any] else { continue }
+                                return .usage(usage(from: result))
+                            }
+                        } catch {
+                            return .usage(nil)
+                        }
+                        return .usage(nil)
+                    }
+                    group.addTask {
+                        try? await Task.sleep(for: .seconds(12))
+                        return .timedOut
+                    }
+
+                    let first = await group.next() ?? .timedOut
+                    if case .timedOut = first {
+                        try? input.fileHandleForWriting.close()
+                        try? output.fileHandleForReading.close()
+                        if process.isRunning {
+                            process.terminate()
+                        }
+                    }
+                    group.cancelAll()
+                    return first
                 }
 
                 try? input.fileHandleForWriting.close()
@@ -169,7 +198,10 @@ final class UsageStore: ObservableObject {
                     process.terminate()
                 }
                 process.waitUntilExit()
-                return fetchedUsage
+                switch outcome {
+                case .usage(let fetchedUsage): return fetchedUsage
+                case .timedOut: return nil
+                }
             } catch {
                 try? input.fileHandleForWriting.close()
                 if process.isRunning {

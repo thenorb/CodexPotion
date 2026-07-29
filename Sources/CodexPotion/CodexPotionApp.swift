@@ -84,7 +84,7 @@ final class RefreshIntervalControlView: NSView {
 }
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusItem: NSStatusItem?
     private var primaryWindowMenuItem: NSMenuItem?
     private var secondaryWindowMenuItem: NSMenuItem?
@@ -153,6 +153,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(.separator())
         menu.addItem(withTitle: "Quit CodexPotion", action: #selector(quit), keyEquivalent: "q")
         menu.items.forEach { $0.target = self }
+        menu.delegate = self
         item.menu = menu
         statusItem = item
         updateStatusItem(with: store.codex)
@@ -305,6 +306,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func refresh() {
+        Task { await store.refresh(force: true) }
+    }
+
+    func menuWillOpen(_ menu: NSMenu) {
         Task { await store.refresh(force: true) }
     }
 

@@ -42,6 +42,8 @@ git pull
   default.
 - Refreshing continues while the menu is open, and the app refreshes immediately
   after the Mac wakes from sleep.
+- Opening the menu requests a fresh snapshot. A stalled local app-server request
+  is stopped after 12 seconds so later refreshes can continue.
 - Use the menu's **− / + interval controls** to choose 30 seconds; 1, 2, 3, 4,
   5, 10, 15, 20, 30, 45, or 60 minutes. Your selection is retained between
   launches, and adjusting it keeps the menu open.
