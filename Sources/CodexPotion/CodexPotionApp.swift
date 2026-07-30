@@ -40,7 +40,7 @@ final class RefreshIntervalControlView: NSView {
         addSubview(decreaseButton)
         addSubview(increaseButton)
         NSLayoutConstraint.activate([
-            intervalLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14),
+            intervalLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 24),
             intervalLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
             intervalLabel.trailingAnchor.constraint(lessThanOrEqualTo: decreaseButton.leadingAnchor, constant: -8),
             decreaseButton.centerYAnchor.constraint(equalTo: centerYAnchor),
