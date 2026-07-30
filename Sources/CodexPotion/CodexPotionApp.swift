@@ -88,8 +88,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusItem: NSStatusItem?
     private var primaryWindowMenuItem: NSMenuItem?
     private var secondaryWindowMenuItem: NSMenuItem?
+    private var resetSectionSeparator: NSMenuItem?
     private var bankedResetsMenuItem: NSMenuItem?
     private var resetCreditMenuItems: [NSMenuItem] = []
+    private var lastUpdatedMenuItem: NSMenuItem?
     private var refreshIntervalControl: RefreshIntervalControlView?
     private var launchAtLoginItem: NSMenuItem?
     private var usageObserver: AnyCancellable?
@@ -121,6 +123,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(secondaryWindowItem)
         secondaryWindowMenuItem = secondaryWindowItem
 
+        let resetSeparator = NSMenuItem.separator()
+        resetSeparator.isHidden = true
+        menu.addItem(resetSeparator)
+        resetSectionSeparator = resetSeparator
+
         let bankedResetsItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
         bankedResetsItem.isEnabled = false
         bankedResetsItem.isHidden = true
@@ -128,6 +135,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         bankedResetsMenuItem = bankedResetsItem
 
         menu.addItem(.separator())
+        let updatedItem = NSMenuItem(title: "Last updated: --", action: nil, keyEquivalent: "")
+        updatedItem.isEnabled = false
+        menu.addItem(updatedItem)
+        lastUpdatedMenuItem = updatedItem
         menu.addItem(withTitle: "Refresh Usage", action: #selector(refresh), keyEquivalent: "r")
         let intervalControl = RefreshIntervalControlView()
         intervalControl.onAdjust = { [weak self] offset in
@@ -161,9 +172,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func observeUsage() {
         usageObserver = store.$codex
+            .combineLatest(store.$lastUpdated)
             .receive(on: RunLoop.main)
-            .sink { [weak self] usage in
-                self?.updateStatusItem(with: usage)
+            .sink { [weak self] output in
+                self?.updateStatusItem(with: output.0)
+                self?.updateLastUpdatedMenu(with: output.1)
             }
     }
 
@@ -209,9 +222,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             item?.isHidden = true
             return
         }
-        var title = "\(label ?? "Usage window"): \(Int(remaining.rounded()))% remaining"
+        var title = "\(label ?? "Usage") \(Int(remaining.rounded()))% left"
         if let reset {
-            title += " · resets \(Self.resetFormatter.string(from: reset))"
+            title += ", resets on \(Self.resetFormatter.string(from: reset))"
         }
         item.title = title
         item.isHidden = false
@@ -224,9 +237,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         guard let availableCount = usage.availableResetCount else {
             summaryItem.isHidden = true
+            resetSectionSeparator?.isHidden = true
             return
         }
 
+        resetSectionSeparator?.isHidden = false
         summaryItem.title = "Banked full resets: \(availableCount) available"
         summaryItem.isHidden = false
 
@@ -242,6 +257,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             resetCreditMenuItems.append(item)
             insertionIndex += 1
         }
+    }
+
+    private func updateLastUpdatedMenu(with date: Date?) {
+        lastUpdatedMenuItem?.title = date.map {
+            "Last updated: \(Self.resetFormatter.string(from: $0))"
+        } ?? "Last updated: --"
     }
 
     private func potionImage(for percentage: Double) -> NSImage {

@@ -50,9 +50,12 @@ git pull
 - Select **Refresh Usage** for an immediate update.
 - Select **Launch at Login** if you want to enable it. It is off by default.
 - The menu shows each exposed usage window with its remaining percentage and
-  exact reset time, including the short and weekly windows when available.
+  exact reset time in a compact format, including the short and weekly windows
+  when available.
 - Available banked full resets are shown with the expiration time for each
-  credit.
+  credit in a separate section.
+- A persisted **Last updated** timestamp shows when the displayed snapshot was
+  successfully fetched.
 
 ## Privacy and security
 

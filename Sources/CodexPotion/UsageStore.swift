@@ -48,6 +48,7 @@ final class UsageStore: ObservableObject {
     private var wakeObserver: NSObjectProtocol?
     private var isRefreshing = false
     private static let refreshIntervalKey = "refreshIntervalSeconds"
+    private static let lastUpdatedKey = "liveCodexUsageUpdatedAt"
 
     init() {
         let savedInterval = UserDefaults.standard.double(forKey: Self.refreshIntervalKey)
@@ -108,20 +109,22 @@ final class UsageStore: ObservableObject {
         defer { isRefreshing = false }
 
         if let usage = await Self.fetchCodexUsage() {
+            let updatedAt = Date()
             codex = usage
-            cache(usage)
-            lastUpdated = Date()
+            lastUpdated = updatedAt
+            cache(usage, updatedAt: updatedAt)
             errorMessage = nil
         } else {
             errorMessage = "Codex usage is temporarily unavailable."
         }
     }
 
-    private func cache(_ usage: ProviderUsage) {
+    private func cache(_ usage: ProviderUsage, updatedAt: Date) {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         if let data = try? encoder.encode(usage) {
             UserDefaults.standard.set(data, forKey: "liveCodexUsage")
+            UserDefaults.standard.set(updatedAt, forKey: Self.lastUpdatedKey)
         }
     }
 
@@ -131,6 +134,7 @@ final class UsageStore: ObservableObject {
         if let data = UserDefaults.standard.data(forKey: "liveCodexUsage"),
            let cached = try? decoder.decode(ProviderUsage.self, from: data) {
             codex = cached
+            lastUpdated = UserDefaults.standard.object(forKey: Self.lastUpdatedKey) as? Date
         }
     }
 
@@ -254,13 +258,13 @@ final class UsageStore: ObservableObject {
             let reset = number(window["resetsAt"]).map(Date.init(timeIntervalSince1970:))
             let label: String
             if let minutes, minutes >= 10_080 {
-                label = "Weekly window"
+                label = "Weekly"
             } else if let minutes, minutes >= 60 {
-                label = "\(minutes / 60)-hour window"
+                label = "\(minutes / 60)-hour"
             } else if let minutes {
-                label = "\(minutes)-minute window"
+                label = "\(minutes)-minute"
             } else {
-                label = "Current window"
+                label = "Current"
             }
             windows.append((min(100, max(0, 100 - used)), reset, label))
         }
