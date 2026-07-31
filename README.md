@@ -7,10 +7,9 @@ The liquid level moves in 10% increments and changes color as your available usa
 drops:
 
 - **70–100%:** green
-- **40–60%:** cyan
-- **20–30%:** yellow
-- **10%:** orange
-- **0%:** red
+- **50–69%:** yellow
+- **20–49%:** orange
+- **0–19%:** red
 
 ## Requirements
 

@@ -271,9 +271,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let liquidColor: NSColor
         switch level {
         case 70...: liquidColor = .systemGreen
-        case 40..<70: liquidColor = .systemCyan
-        case 20..<40: liquidColor = .systemYellow
-        case 10..<20: liquidColor = .systemOrange
+        case 50..<70: liquidColor = .systemYellow
+        case 20..<50: liquidColor = .systemOrange
         default: liquidColor = .systemRed
         }
 
