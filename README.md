@@ -55,6 +55,8 @@ git pull
   credit in a separate section.
 - A persisted **Last updated** timestamp shows when the displayed snapshot was
   successfully fetched.
+- If a refresh fails, a warning beside the percentage and in the menu identifies
+  cached usage until a fresh snapshot succeeds.
 
 ## Privacy and security
 
@@ -70,6 +72,10 @@ The app launches the locally installed official `codex app-server` process and
 requests `account/rateLimits/read` over a local JSON-RPC stdio connection. Codex
 itself handles its existing authentication and OpenAI service communication. The
 app receives only the rate-limit snapshot needed to render the meter.
+
+Executable discovery supports current nested Codex CLI bundles and older layouts
+inside ChatGPT.app or Codex.app in `/Applications` or `~/Applications`, then
+Homebrew, `/usr/local/bin`, and the app's inherited `PATH`.
 
 The last successful percentage and reset time are cached locally in the app's
 standard macOS preferences so the menu-bar display does not disappear during a

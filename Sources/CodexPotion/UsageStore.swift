@@ -217,11 +217,25 @@ final class UsageStore: ObservableObject {
     }
 
     nonisolated private static func codexExecutable() -> URL? {
-        var candidates = [
-            "/Applications/ChatGPT.app/Contents/Resources/codex",
+        let applicationDirectories = [
+            "/Applications",
+            FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Applications").path
+        ]
+        var candidates: [String] = []
+        for directory in applicationDirectories {
+            for app in ["ChatGPT.app", "Codex.app"] {
+                let resources = "\(directory)/\(app)/Contents/Resources"
+                candidates.append(contentsOf: [
+                    "\(resources)/codex-cli/CodexCLI.app/Contents/MacOS/codex",
+                    "\(resources)/codex-cli/bin/codex",
+                    "\(resources)/codex"
+                ])
+            }
+        }
+        candidates.append(contentsOf: [
             "/opt/homebrew/bin/codex",
             "/usr/local/bin/codex"
-        ]
+        ])
         if let path = ProcessInfo.processInfo.environment["PATH"] {
             candidates.append(contentsOf: path.split(separator: ":").map { "\($0)/codex" })
         }

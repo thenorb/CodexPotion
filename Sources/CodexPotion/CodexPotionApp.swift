@@ -92,6 +92,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var bankedResetsMenuItem: NSMenuItem?
     private var resetCreditMenuItems: [NSMenuItem] = []
     private var lastUpdatedMenuItem: NSMenuItem?
+    private var usageErrorMenuItem: NSMenuItem?
     private var refreshIntervalControl: RefreshIntervalControlView?
     private var launchAtLoginItem: NSMenuItem?
     private var usageObserver: AnyCancellable?
@@ -139,6 +140,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         updatedItem.isEnabled = false
         menu.addItem(updatedItem)
         lastUpdatedMenuItem = updatedItem
+        let errorItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        errorItem.isEnabled = false
+        errorItem.isHidden = true
+        menu.addItem(errorItem)
+        usageErrorMenuItem = errorItem
         menu.addItem(withTitle: "Refresh Usage", action: #selector(refresh), keyEquivalent: "r")
         let intervalControl = RefreshIntervalControlView()
         intervalControl.onAdjust = { [weak self] offset in
@@ -172,22 +178,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func observeUsage() {
         usageObserver = store.$codex
-            .combineLatest(store.$lastUpdated)
+            .combineLatest(store.$lastUpdated, store.$errorMessage)
             .receive(on: RunLoop.main)
             .sink { [weak self] output in
-                self?.updateStatusItem(with: output.0)
+                self?.updateStatusItem(with: output.0, errorMessage: output.2)
                 self?.updateLastUpdatedMenu(with: output.1)
             }
     }
 
-    private func updateStatusItem(with usage: ProviderUsage) {
+    private func updateStatusItem(with usage: ProviderUsage, errorMessage: String? = nil) {
         guard let button = statusItem?.button else { return }
         let overallRemaining = usage.limitingRemainingPercent
         let percentage = overallRemaining < 0
             ? "--"
             : "\(Int(overallRemaining.rounded()))%"
         let title = NSAttributedString(
-            string: percentage,
+            string: errorMessage == nil ? percentage : "\(percentage) ⚠︎",
             attributes: [
                 .font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .medium),
                 .foregroundColor: NSColor.labelColor
@@ -195,7 +201,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         )
         button.attributedTitle = title
         button.image = potionImage(for: overallRemaining)
-        button.toolTip = "Codex usage remaining: \(percentage)"
+        if let errorMessage {
+            let status = overallRemaining >= 0 ? "Cached Codex usage remaining: \(percentage)." : "Codex usage unavailable."
+            button.toolTip = "\(status) \(errorMessage)"
+            usageErrorMenuItem?.title = overallRemaining >= 0
+                ? "Refresh failed — showing cached usage"
+                : "Codex usage is unavailable"
+        } else {
+            button.toolTip = "Codex usage remaining: \(percentage)"
+        }
+        usageErrorMenuItem?.isHidden = errorMessage == nil
 
         updateWindowMenuItem(
             primaryWindowMenuItem,
